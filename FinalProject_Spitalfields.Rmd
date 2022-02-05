@@ -1,0 +1,458 @@
+---
+title: "FinalProject_Spitalfields"
+author: "Megan Willis-Jackson"
+date: "11/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, echo = F}
+options(java.parameters = "-Xmx2G")
+
+library(r5r)
+library(osmextract)
+library(osmdata)
+library(opentripplanner)
+library(tidyverse)
+library(sf)
+library(ggthemes)
+library(ggspatial)
+library(sp)
+library(stringr)
+library(rgeos)
+library(tidygeocoder)
+library(XML)
+library(methods)
+library(ggplot2)
+library(stars)
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+```
+
+```{r}
+dir.create("networks_london")
+dir.create("networks_dhaka")
+
+download.file("https://transitfeeds.com/p/citymapper/894/latest/download", file.path("networks_london","london.zip"), mode = "wb", quiet=TRUE)
+
+london_file <- oe_match("London UK")
+dhaka_file <- oe_match("Dhaka Bangladesh")
+
+london_streets <- oe_read(london_file$url, 
+                   provider = "openstreetmap_fr", 
+                   download_directory = "networks_london", 
+                   layer = "lines", 
+                   quiet = TRUE) %>%
+  filter(!is.na(highway)) 
+
+dhaka_streets <- oe_read(dhaka_file$url, 
+                   provider = "geofabrik", 
+                   download_directory = "networks_dhaka", 
+                   layer = "lines", 
+                   quiet = TRUE) %>%
+  filter(!is.na(highway)) 
+
+
+
+```
+
+```{r}
+spitalfields_osm <- st_read("C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/OSM_spitalfields/spitalfields2021.osm")
+
+dhaka_shape <- st_read("C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/Dhaka/dhaka_administrative_boundaries")
+
+dhaka_streets2 <- dhaka_streets[dhaka_shape,]
+
+uk_proj<- "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs"
+
+london<- st_read("C:/Users/mwill/OneDrive - Harvard University/2020 - Fall/Spatial Analysis/Git/mwillisjackson-vis/Data/London-wards-2018/London-wards-2018_ESRI", 
+                 quiet = T) %>%
+  st_transform(uk_proj)
+
+th_food <- xmlParse("C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/OSM_spitalfields/FHRS530en-GB_2.xml") %>%
+  xmlToList()
+
+london_streets <- london_streets %>%
+  st_transform(uk_proj)
+
+london_stations <- st_read("https://www.doogal.co.uk/LondonStationsKML.ashx") %>%
+  st_transform(uk_proj)
+
+spitalfield_stations <- london_stations[london[which(london$NAME == "Spitalfields & Banglatown"),],]
+
+london_routes <- st_read("C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/OSM_spitalfields/transit/London Train Lines.kml") %>%
+  st_transform(uk_proj)
+
+towerhamlet_streets <- london_streets[london[which(london$DISTRICT == "Tower Hamlets"),],]
+
+spitalfield_streets <- towerhamlet_streets[london[which(london$NAME == "Spitalfields & Banglatown"),],]
+
+
+
+
+```
+
+```{r}
+  
+th_food2 <- th_food[["EstablishmentCollection"]]
+
+df_th_food <- as.data.frame(do.call(rbind, th_food2))
+
+df_th_food_col1 <- df_th_food %>%
+  filter(grepl("list", SchemeType) == T) %>%
+  mutate(geometry = SchemeType) %>%
+  select(FHRSID, geometry)
+
+df_th_food_col2 <- df_th_food %>%
+  filter(grepl("list", NewRatingPending) == T) %>%
+  mutate(geometry = NewRatingPending) %>%
+  select(FHRSID, geometry)
+
+df_th_food_geometry <- rbind(df_th_food_col1, df_th_food_col2) %>%
+  mutate(longitude = str_sub(string = geometry, start = 19, end = 35),
+         latitude = str_sub(string = geometry, start = 51, end = 67)) 
+
+df_th_food_geometry <- df_th_food_geometry[order(df_th_food_geometry$latitude),]
+df_th_food_geometry <- df_th_food_geometry[-c(1:13),] 
+
+df_th_food_geometry <- df_th_food_geometry %>%
+  left_join(df_th_food, by = "FHRSID") %>%
+  st_as_sf(coords = c("longitude", "latitude")) %>%
+  st_set_crs("WGS84") %>%
+  select(FHRSID:BusinessType, geometry) %>%
+  st_transform(uk_proj)
+
+df_th_food_geometry$BusinessType <- as.character(df_th_food_geometry$BusinessType)
+df_th_food_geometry$FHRSID <- as.character(df_th_food_geometry$FHRSID)
+df_th_food_geometry$LocalAuthorityBusinessID <- 
+  as.character(df_th_food_geometry$LocalAuthorityBusinessID)
+df_th_food_geometry$BusinessName <- as.character(df_th_food_geometry$BusinessName)
+
+spitalfields_food <- df_th_food_geometry[london[which(london$NAME == "Spitalfields & Banglatown"),],]
+
+towerhamlet_food <- df_th_food_geometry[london[which(london$DISTRICT == "Tower Hamlet"),],]
+
+st_write(df_th_food_geometry, 
+         "C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/OSM_spitalfields/food/tower_hamlets_foodservice.gpkg", append = F)
+
+st_write(london,
+         "C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/OSM_spitalfields/food/london_neighborhoods.gpkg", append = F)
+
+st_write(london_stations, 
+         "C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/OSM_spitalfields/food/london_stations.gpkg", append = F)
+
+st_write(london_routes, 
+         "C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/OSM_spitalfields/food/london_routes.gpkg", append = F)
+
+st_write(london_streets,
+         "C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/OSM_spitalfields/food/london_streets.gpkg", append = F)
+
+st_write(dhaka_streets2,
+         "C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/Dhaka/streets/dhaka_streets.gpkg", append = F)
+
+  
+ggplot(df_th_food_geometry) +
+  geom_sf(aes(color = BusinessType))
+
+```
+
+```{r}
+spit_streets <- ggplot(spitalfield_streets) +
+  geom_sf() +
+  geom_sf(data = spitalfields_food, color = "darkorange", alpha = .5) +
+  theme_map()
+
+spit_streets
+
+pdf('C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/FinalProject/RImages/spitalfields_roads_graph.pdf')
+spit_streets
+dev.off()
+
+ggplot(london_transit) +
+  geom_sf(data = london_routes) +
+  geom_sf()
+
+
+ggplot(dhaka_streets2) +
+  geom_sf() +
+  theme_void()
+
+
+
+```
+
+```{r network analysis, message=F, echo=F}
+r5r_core <- setup_r5("networks_london", verbose = FALSE)
+
+
+```
+
+```{r}
+spitalfields <- london[which(london$NAME == "Spitalfields & Banglatown"),]
+
+towerhamlet <- london[which(london$DISTRICT == "Tower Hamlets"),]
+
+grid <- st_sf(st_make_grid(london[which(london$NAME == "Spitalfields & Banglatown"),], 
+                           square = FALSE, 
+                           n = c(100,100),
+                           what = "polygons")) %>%
+  st_filter(spitalfields)
+
+colnames(grid) <- "geometry"
+st_geometry(grid) <- "geometry"
+
+grid <- grid %>%
+  mutate(id = seq(1, length(grid$geometry), by=1))
+
+grid_points <- st_centroid(grid)
+
+
+transit_grid <- grid %>%
+  mutate(num_food = lengths(st_covers(grid, spitalfields_food)))
+
+transit_points <- st_centroid(transit_grid)
+
+ggplot(transit_points) +
+  geom_sf(aes(color = num_food), size = 1) +
+  scale_color_gradient(low = "black", high = "yellow") +
+  theme_void()
+
+
+
+grid_th <- st_sf(st_make_grid(towerhamlet, 
+                           square = FALSE, 
+                           n = c(100,100),
+                           what = "polygons")) %>%
+  st_filter(towerhamlet)
+
+colnames(grid_th) <- "geometry"
+st_geometry(grid_th) <- "geometry"
+
+grid_th <- grid_th %>%
+  mutate(id = seq(1, length(grid_th$geometry), by=1))
+
+grid_points_th <- st_centroid(grid_th)
+
+
+transit_grid_th <- grid_th %>%
+  mutate(num_food = lengths(st_covers(grid_th %>% 
+                                        st_transform("WGS84"), towerhamlet_food %>% 
+                                        st_transform("WGS84"))))
+
+transit_points_th <- st_centroid(transit_grid_th)
+
+```
+
+```{r}
+transit_access <- accessibility(r5r_core,
+                        origins = transit_points %>% st_transform("WGS84"),
+                        destinations = transit_points %>% st_transform("WGS84"),
+                        mode = "WALK",
+                        opportunities_colname = "num_food",
+                        decay_function = "step",
+                        cutoffs = 11,
+                        departure_datetime = as.POSIXct("15-11-2021 14:00:00",
+                                 format = "%d-%m-%Y %H:%M:%S"),
+                        max_walk_dist = 500,
+                        time_window = 60,
+                        percentiles = 50,
+                        verbose = FALSE) %>%
+  mutate(id = as.numeric(from_id)) %>%
+  merge(grid)
+
+st_geometry(transit_access) <- "geometry"
+
+ggplot(transit_access) +
+  geom_sf(aes(fill = accessibility), color = NA) +
+  scale_fill_viridis_c(name = "Restaurant\nwithin 10-minute\nwalk") +
+  coord_sf(crs = uk_proj) +
+  theme_void()
+
+
+
+transit_access_th <- accessibility(r5r_core,
+                        origins = transit_points_th %>% st_transform("WGS84"),
+                        destinations = transit_points_th %>% st_transform("WGS84"),
+                        mode = "WALK",
+                        opportunities_colname = "num_food",
+                        decay_function = "step",
+                        cutoffs = 11,
+                        departure_datetime = as.POSIXct("15-11-2021 14:00:00",
+                                 format = "%d-%m-%Y %H:%M:%S"),
+                        max_walk_dist = 500,
+                        time_window = 60,
+                        percentiles = 50,
+                        verbose = FALSE) %>%
+  mutate(id = as.numeric(from_id)) %>%
+  merge(grid_th)
+
+st_geometry(transit_access_th) <- "geometry"
+
+ggplot(transit_access_th) +
+  geom_sf(aes(fill = accessibility), color = NA) +
+  scale_fill_viridis_c(name = "Restaurant\nwithin 10-minute\nwalk") +
+  coord_sf(crs = uk_proj) +
+  theme_void()
+
+
+```
+
+```{r}
+
+stop_r5(r5r_core)
+rJava::.jgc(R.gc = TRUE)
+
+st_write(transit_access, 'spitalfields_access.geojson', append=FALSE, quiet=TRUE )
+
+```
+
+```{r}
+access_poly <- st_read("spitalfields_access.geojson", quiet=TRUE)
+
+access_raster <- st_rasterize(access_poly["accessibility"], 
+                              nx = 100, ny = 100) 
+plot(access_raster)
+
+
+```
+
+```{r}
+spitalfields_graph <- ggplot(spitalfield_streets) +
+  geom_stars(data = access_raster) +
+  geom_sf(color = "white", alpha = 0.4) +
+  geom_sf(data = spitalfield_streets %>% filter(name == "Brick Lane"),
+          color = "white", size = 1.2, alpha = .7) +
+  scale_fill_viridis_c(na.value = NA, 
+                       option="A",
+                       name = "Food Service within\n10-minute walk") +
+  theme_void() +
+  theme(legend.direction = "horizontal", legend.position = c(.6,.2), 
+        text = element_text(size = 8))
+
+spitalfields_graph
+
+pdf('spitalfields_graph.pdf')
+spitalfields_graph
+dev.off()
+
+spitalfields_importantstreets <- spitalfield_streets %>%
+  filter(name %in% c("Brick Lane", "Fashion Street", 
+                   "Hanbury Street", "Chicksand Street"))
+
+spitalfields_promroads <- ggplot(spitalfield_streets) +
+ # annotation_map_tile(type = "cartolight", zoomin = 2) +
+  geom_sf(size = .75) + 
+  geom_sf(data = spitalfields_importantstreets, 
+          color = "pink", size = 1.5, alpha = .95) +
+  theme_void() 
+  
+spitalfields_promroads
+
+pdf('spitalfields_promroads.pdf')
+spitalfields_promroads
+dev.off()
+
+  
+```
+
+```{r}
+
+ggplot(london) +
+  geom_sf(alpha = .3, size = .5, color = "black") +
+  geom_stars(data = access_raster) +
+  scale_fill_viridis_c(na.value = NA, 
+                       option="A",
+                       name = "Food Service within\n10-minute walk") +
+  theme_void() 
+
+
+```
+
+```{r load london restaurant data for graphs}
+library(readxl)
+
+london_bars <- read_xls("https://data.london.gov.uk/download/pubs-clubs-restaurants-takeaways-borough/d05cfa40-b855-42b3-80da-26e53d2a9a43/pubs-borough-msoa.xls")
+
+
+
+```
+
+```{r plotting the world}
+world <- ne_countries(scale = "medium", returnclass = "sf") %>%
+  filter(admin != "Antarctica")
+
+uk_trade <- world %>%
+  filter(name %in% c("Bangladesh", "United Kingdom"))
+
+right_side<- st_bbox(uk_trade)$xmax + 10
+left_side<- st_bbox(uk_trade)$xmin - 50
+top_side<- st_bbox(uk_trade)$ymax + 50
+bottom_side<- st_bbox(uk_trade)$ymin - 100
+
+uk_trade <- ggplot(world) +
+  geom_sf(color = NA) +
+  geom_sf(data = uk_trade, fill = "palevioletred3", color = NA) +
+  theme_void() +
+  coord_sf(xlim = c(left_side, right_side),
+           ylim = c(bottom_side, top_side), expand = F)
+
+
+pdf('uk_trade.pdf')
+uk_trade
+dev.off()
+
+
+
+```
+
+
+```{r london docks}
+ggplot(towerhamlet_streets) +
+  geom_sf()
+
+ggplot(spitalfields) +
+  geom_sf(fill = NA) +
+  geom_sf(data = spitalfield_streets) +
+  geom_sf(data = spitalfields_importantstreets, color = "red") +
+  theme_void()
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

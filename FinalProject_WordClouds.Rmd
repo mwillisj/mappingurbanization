@@ -1,0 +1,65 @@
+---
+title: "FinalProject_WordClouds"
+author: "Megan Willis-Jackson"
+date: "12/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=F}
+library(wordcloud)
+library(RColorBrewer)
+library(wordcloud2)
+library(tidyverse)
+
+
+```
+
+```{r, message=F}
+bricklane_words <- read.csv("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Maps and Images/Brick Lane/spitalfields_words.csv")
+
+marylebonelane_words <- read.csv("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Maps and Images/Brick Lane/maryleboneln_words.csv")
+
+df <- bricklane_words %>%
+  group_by(Word) %>%
+  summarise(freq = n(), 
+            category = first(Category),
+            color = first(color))
+
+df_m <- marylebonelane_words %>%
+  group_by(Word) %>%
+  summarise(freq = n(), 
+            category = first(Category),
+            color = first(color))
+  
+
+
+```
+
+
+```{r, message=F, fig.height=30, fig.width=30}
+set.seed(1234) # for reproducibility 
+#wordcloud(words = df$Word, freq = df$freq, min.freq = 1,           
+ #         max.words=500, random.order=FALSE, rot.per=0.35, color = df$color, 
+  #        scale=c(3.5,0.25))
+
+bricklane_words <- wordcloud2(data=df,
+                              size=.6,
+                              shape = "circle",
+                              color = df$color)
+
+marylebonelane_words <- wordcloud2(data=df_m,
+                                   size=.4,
+                                   shape = "circle",
+                                   color = df_m$color)
+
+bricklane_words
+marylebonelane_words
+
+
+?wordcloud2
+
+```

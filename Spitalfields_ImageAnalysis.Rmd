@@ -1,0 +1,478 @@
+---
+title: "Spitalfields_imageanalysis"
+author: "Megan Willis-Jackson"
+date: "11/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libraries, message=F}
+library(imager)
+library(data.table)
+library(tidyverse)
+library(raster)
+library(stars)
+library(ggplot2)
+library(mapplots)
+library(jpeg)
+library(grid)
+library(gridExtra)
+
+```
+
+# Brick Lane
+
+```{r}
+# Load file names of all saved Google streetview images
+filenames <- list.files(path = "C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage", 
+                        pattern="*.jpg", full.names = T)
+
+ldf <- list() # creates a list
+
+for (k in 1:length(filenames)){
+ ldf[[k]] <- load.image(filenames[k])
+}
+
+# create an empty list to later save the ggplots
+
+plot_list <- list()
+plot_combined_list <- list()
+name_list <- list()
+
+for (i in 1:length(ldf)) {
+    
+# convert intensity to RGB values
+channel.labels <- c('R','G','B','A')[1:dim(ldf[[i]])[4]]
+img <- as.data.table(as.data.frame(ldf[[i]]))
+img[,channel := factor(cc ,labels=channel.labels)]
+img <- dcast(img, x+y ~ channel, value.var = "value")
+    
+# convert RGB to hex values, sort by color
+img_hex <- 
+  apply(arrange(img, desc(R, B, G)), 1, function(row){
+    hex <- rgb(row[3], row[4], row[5], maxColorValue = 1)
+    hex
+  }) %>%
+  as.data.frame()
+
+img_combined <- cbind(img[,1:2], img_hex) 
+
+colnames(img_combined) <- c("x", "y", "img_hex")
+
+
+
+#plot <-  ggplot(img_combined) + 
+ # geom_point(aes(x = y, y = seq(1, nrow(img_combined), by = 1)), 
+  #           show.legend = F, color = img_combined$img_hex, 
+   #          size = 7, shape = "square") +
+  #theme_void()
+
+# plot_list[[i]] = plot
+
+
+#ggsave(plot, file=paste0("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/PixelBarcharts","/plot_", i,".png"), 
+ #      width = 7, height = 10, units = "cm")
+
+
+plot_combined_list[[i]] <- img_combined
+
+#name_list[[i]] <- paste("ggplot", i, sep = "")
+
+name_list[[i]] <- geom_point(data =  plot_combined_list[[i]],
+                            aes(x = i, 
+                                y = seq(1, nrow(plot_combined_list[[i]]), 
+                                        by = 1)),
+                            show.legend = F, 
+                            color = plot_combined_list[[i]][["img_hex"]],
+                            size = 7, shape = "square")
+
+
+#save(name_list[[i]], )
+
+}
+
+
+
+
+for (i in 1:length(plot_combined_list)) {
+
+  p <- ggplot() +
+  assign(paste0("test_plot", i), name_list[[i]]) +
+  theme_void()
+
+print(p)
+
+ggsave(p, file=paste0("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/Barcharts_clean","/plot_", i,".png"), 
+       width = 7, height = 10, units = "cm")
+
+  }
+
+
+
+
+
+
+```
+
+
+# Marylebone Lane
+
+```{r}
+# Load file names of all saved Google streetview images
+filenames <- list.files(path = "C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/MaryleboneLane", 
+                        pattern="*.jpg", full.names = T)
+
+ldf <- list() # creates a list
+
+for (k in 1:length(filenames)){
+ ldf[[k]] <- load.image(filenames[k])
+}
+
+# create an empty list to later save the ggplots
+
+plot_list <- list()
+plot_combined_list <- list()
+name_list <- list()
+
+for (i in 1:length(ldf)) {
+    
+# convert intensity to RGB values
+channel.labels <- c('R','G','B','A')[1:dim(ldf[[i]])[4]]
+img <- as.data.table(as.data.frame(ldf[[i]]))
+img[,channel := factor(cc ,labels=channel.labels)]
+img <- dcast(img, x+y ~ channel, value.var = "value")
+    
+# convert RGB to hex values, sort by color
+img_hex <- 
+  apply(arrange(img, desc(R, B, G)), 1, function(row){
+    hex <- rgb(row[3], row[4], row[5], maxColorValue = 1)
+    hex
+  }) %>%
+  as.data.frame()
+
+img_combined <- cbind(img[,1:2], img_hex) 
+
+colnames(img_combined) <- c("x", "y", "img_hex")
+
+
+
+plot <-  ggplot(img_combined) + 
+  geom_point(aes(x = y, y = seq(1, nrow(img_combined), by = 1)), 
+             show.legend = F, color = img_combined$img_hex, 
+             size = 7, shape = "square") +
+  theme_void()
+
+plot_list[[i]] = plot
+
+
+ggsave(plot, file=paste0("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/MaryleboneLane/PixelBarcharts","/plot_", i,".png"), 
+       width = 7, height = 10, units = "cm")
+
+
+plot_combined_list[[i]] <- img_combined
+
+#name_list[[i]] <- paste("ggplot", i, sep = "")
+
+name_list[[i]] <- geom_point(data =  plot_combined_list[[i]],
+                            aes(x = i, 
+                                y = seq(1, nrow(plot_combined_list[[i]]), 
+                                        by = 1)),
+                            show.legend = F, 
+                            color = plot_combined_list[[i]][["img_hex"]],
+                            size = 7, shape = "square")
+
+
+#save(name_list[[i]], )
+
+}
+
+
+
+
+for (i in 1:length(plot_combined_list)) {
+
+  p <- ggplot() +
+  assign(paste0("test_plot", i), name_list[[i]]) +
+  theme_void()
+
+print(p)
+
+ggsave(p, file=paste0("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/MaryleboneLane/Barcharts_clean","/plot_", i,".png"), 
+       width = 7, height = 10, units = "cm")
+
+  }
+
+
+
+
+
+
+```
+
+# Outer Circular Road
+
+```{r}
+# Load file names of all saved Google streetview images
+filenames <- list.files(path = "C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/OuterCircularRd", 
+                        pattern="*.jpg", full.names = T)
+
+ldf <- list() # creates a list
+
+for (k in 1:length(filenames)){
+ ldf[[k]] <- load.image(filenames[k])
+}
+
+# create an empty list to later save the ggplots
+
+plot_list <- list()
+plot_combined_list <- list()
+name_list <- list()
+
+for (i in 1:length(ldf)) {
+    
+# convert intensity to RGB values
+channel.labels <- c('R','G','B','A')[1:dim(ldf[[i]])[4]]
+img <- as.data.table(as.data.frame(ldf[[i]]))
+img[,channel := factor(cc ,labels=channel.labels)]
+img <- dcast(img, x+y ~ channel, value.var = "value")
+    
+# convert RGB to hex values, sort by color
+img_hex <- 
+  apply(arrange(img, desc(R, B, G)), 1, function(row){
+    hex <- rgb(row[3], row[4], row[5], maxColorValue = 1)
+    hex
+  }) %>%
+  as.data.frame()
+
+img_combined <- cbind(img[,1:2], img_hex) 
+
+colnames(img_combined) <- c("x", "y", "img_hex")
+
+
+
+plot <-  ggplot(img_combined) + 
+  geom_point(aes(x = y, y = seq(1, nrow(img_combined), by = 1)), 
+             show.legend = F, color = img_combined$img_hex, 
+             size = 7, shape = "square") +
+  theme_void()
+
+plot_list[[i]] = plot
+
+
+ggsave(plot, file=paste0("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/OuterCircularRd/PixelBarcharts","/plot_", i,".png"), 
+       width = 7, height = 10, units = "cm")
+
+
+plot_combined_list[[i]] <- img_combined
+
+#name_list[[i]] <- paste("ggplot", i, sep = "")
+
+name_list[[i]] <- geom_point(data =  plot_combined_list[[i]],
+                            aes(x = i, 
+                                y = seq(1, nrow(plot_combined_list[[i]]), 
+                                        by = 1)),
+                            show.legend = F, 
+                            color = plot_combined_list[[i]][["img_hex"]],
+                            size = 7, shape = "square")
+
+
+#save(name_list[[i]], )
+
+}
+
+
+
+
+for (i in 1:length(plot_combined_list)) {
+
+  p <- ggplot() +
+  assign(paste0("test_plot", i), name_list[[i]]) +
+  theme_void()
+
+print(p)
+
+ggsave(p, file=paste0("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/OuterCircularRd/Barcharts_clean","/plot_", i,".png"), 
+       width = 7, height = 10, units = "cm")
+
+  }
+
+
+
+
+
+
+```
+
+
+
+
+```{r}
+
+
+plot(img)
+#my test code
+
+    channel.labels <- c('R','G','B','A')[1:dim(ldf[[1]])[4]]
+    img <- as.data.table(as.data.frame(ldf[[1]]))
+    #img <- arrange(img, desc(value))
+    img[,channel := factor(cc ,labels=channel.labels)]
+    img <- dcast(img, x+y ~ channel, value.var = "value")
+    
+
+
+img_hex <- 
+  apply(arrange(img, desc(R, B)), 1, function(row){
+    hex <- rgb(row[3], row[4], row[5], maxColorValue = 1)
+    hex
+  }) %>%
+  as.data.frame()
+
+img_combined <- cbind(img[,1:2], img_hex)
+
+colnames(img_combined) <- c("x", "y", "img_hex")
+
+#img_combined <- img_combined[, c(1:2, 8)]
+
+img_colors <- img_combined %>%
+  group_by(img_hex) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+ggplot(img_colors, aes(y = n, x = img_hex)) + 
+    geom_bar(position = "fill", stat="identity", show.legend = F,
+             fill = img_colors$img_hex, color = NA)
+
+ggplot(img_combined) +
+  geom_point(aes(x = 1, y = seq(1, nrow(img_combined), by = 1)), 
+             show.legend = F, color = img_combined$img_hex, size = 10, shape = "square")
+
+
+ggplot(img_combined) +
+  geom_point(aes(x = y, y = seq(1, nrow(img_combined), by = 1)), 
+             show.legend = F, color = img_combined$img_hex) +
+  theme_void()
+
+    
+    
+
+    
+
+```
+
+
+
+
+
+
+```{r}
+mandrill <- readJPEG("C:/Users/mwill/Harvard University/Harkison, Natasha - Mapping Urbanization in London/Data/GroundFloorSignage/JBFoodStore.jpg")
+
+dim(mandrill)
+
+
+grid.raster(mandrill)
+### EX 2: show the B channel in gray scale representing pixel intensity
+grid.raster(mandrill[,,3])
+### EX 3: show the 3 channels in separate images
+# copy the image three times
+mandrill.R = mandrill
+mandrill.G = mandrill
+mandrill.B = mandrill
+# zero out the non-contributing channels for each image copy
+mandrill.R[,,2:3] = 0
+mandrill.G[,,1]=0
+mandrill.G[,,3]=0
+mandrill.B[,,1:2]=0
+# build the image grid
+img1 = rasterGrob(mandrill.R)
+img2 = rasterGrob(mandrill.G)
+img3 = rasterGrob(mandrill.B)
+grid.arrange(img1, img2, img3, nrow=1)
+
+
+# reshape image into a data frame
+df = data.frame(
+  red = matrix(mandrill[,,1], ncol=1),
+  green = matrix(mandrill[,,2], ncol=1),
+  blue = matrix(mandrill[,,3], ncol=1)
+)
+
+
+### compute the k-means clustering
+K = kmeans(df,6)
+df$label = K$cluster
+### Replace the color of each pixel in the image with the mean 
+### R,G, and B values of the cluster in which the pixel resides:
+# get the coloring
+colors = data.frame(
+  label = 1:nrow(K$centers), 
+  R = K$centers[,"red"],
+  G = K$centers[,"green"],
+  B = K$centers[,"blue"]
+)
+# merge color codes on to df
+# IMPORTANT: we must maintain the original order of the df after the merge!
+df$order = 1:nrow(df)
+df = merge(df, colors)
+df = df[order(df$order),]
+df$order = NULL
+
+
+# get mean color channel values for each row of the df.
+R = matrix(df$R, nrow=dim(mandrill)[1])
+G = matrix(df$G, nrow=dim(mandrill)[1])
+B = matrix(df$B, nrow=dim(mandrill)[1])
+  
+# reconstitute the segmented image in the same shape as the input image
+mandrill.segmented = array(dim=dim(mandrill))
+mandrill.segmented[,,1] = R
+mandrill.segmented[,,2] = G
+mandrill.segmented[,,3] = B
+# View the result
+grid.raster(mandrill.segmented)
+
+#class(mandrill.segmented)
+
+
+#img <- as.data.table(as.data.frame.table(mandrill.segmented))
+
+#img_temp <- as.data.frame(cbind(img[,1:3], img[,4] %>% arrange(desc(Freq))))
+
+#img <- array(pivot_wider(img_temp, names_from = Var1, values_from = Freq))
+
+#grid.raster(img)
+
+df$hex <- rgb(red = df$R, blue = df$B, green = df$G, maxColorValue = 1)
+
+df_colors <- df %>%
+  group_by(hex) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+ggplot(df_c) +
+  geom_bar()
+
+ggplot(df_colors) + 
+    geom_bar(position = "stack", stat="identity", show.legend = F,
+             aes(y = n, x = hex), fill = df_colors$hex)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
