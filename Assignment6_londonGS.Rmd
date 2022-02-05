@@ -1,0 +1,51 @@
+---
+title: "Assignment6"
+author: "Megan Willis-Jackson"
+date: "10/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(sf)
+library(tidyverse)
+library(ggplot2)
+library(rgdal)
+```
+
+
+```{r}
+london_central <- st_read("C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/Assignments/Assignment6/SourceLayers/london_central")
+
+london_temp_dif <- st_read("C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/Assignments/Assignment6/SourceLayers/temp_difference")
+
+london_greenspace <- st_read("C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/Assignments/Assignment6/SourceLayers/london_greenspace")
+
+
+```
+```{r}
+london_greenspace <- rbind(london_gs3, london_gs2)
+
+ggplot(london_greenspace) +
+  geom_sf(color = NA, aes(fill = cover_type))
+
+ggplot(london_gs158) +
+  geom_sf(aes(fill = cover_type), color = NA)
+
+
+```
+
+```{r}
+london_openspace <- st_read("C:/Users/mwill/OneDrive - Harvard University/2021 - Fall/Mapping Urbanization/Assignments/Assignment6/access-public-open-space-ward.xls")
+```
+
+
+
+
+
+
+
+
